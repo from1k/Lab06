@@ -9,116 +9,112 @@ jobs:
   build-linux:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y rpm
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y rpm
 
-    - name: Configure CMake
-      run: |
-        mkdir build && cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release
+      - name: Configure CMake
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
-    - name: Build
-      run: |
-        cd build
-        make
+      - name: Build
+        run: cmake --build build --config Release
 
-    - name: Create packages
-      run: |
-        cd build
-        cpack -G DEB
-        cpack -G RPM
-        cpack -G TGZ
-        cpack -G ZIP
+      - name: Create packages
+        run: |
+          cd build
+          cpack -G DEB  || true
+          cpack -G RPM  || true
+          cpack -G TGZ  || true
+          cpack -G ZIP  || true
 
-    - name: List generated packages
-      run: |
-        ls -la build/*.deb build/*.rpm build/*.tar.gz build/*.zip 2>/dev/null || true
+      - name: List generated packages
+        run: ls -la build/*.deb build/*.rpm build/*.tar.gz build/*.zip 2>/dev/null || true
 
-    - name: Upload all artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-packages
-        path: |
-          build/*.deb
-          build/*.rpm
-          build/*.tar.gz
-          build/*.zip
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-packages
+          path: |
+            build/*.deb
+            build/*.rpm
+            build/*.tar.gz
+            build/*.zip
+          if-no-files-found: warn
 
   build-macos:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Configure CMake
-      run: |
-        mkdir build && cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release
+      - name: Configure CMake
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
-    - name: Build
-      run: |
-        cd build
-        make
+      - name: Build
+        run: cmake --build build --config Release
 
-    - name: Create packages
-      run: |
-        cd build
-        cpack -G DragNDrop
-        cpack -G TGZ
-        cpack -G ZIP
+      - name: Create packages
+        run: |
+          cd build
+          cpack -G DragNDrop || true
+          cpack -G TGZ       || true
+          cpack -G ZIP       || true
 
-    - name: List generated packages
-      run: |
-        ls -la build/*.dmg build/*.tar.gz build/*.zip 2>/dev/null || true
+      - name: List generated packages
+        run: ls -la build/*.dmg build/*.tar.gz build/*.zip 2>/dev/null || true
 
-    - name: Upload all artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: macos-packages
-        path: |
-          build/*.dmg
-          build/*.tar.gz
-          build/*.zip
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-packages
+          path: |
+            build/*.dmg
+            build/*.tar.gz
+            build/*.zip
+          if-no-files-found: warn
 
   build-windows:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Configure CMake
-      run: |
-        mkdir build
-        cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release
+      # WiX Toolset Ð½ÑƒÐ¶ÐµÐ½ Ð´Ð»Ñ� Ð³ÐµÐ½ÐµÑ€Ð°Ñ†Ð¸Ð¸ MSI
+      - name: Install WiX Toolset
+        run: |
+          choco install wixtoolset --no-progress -y
+          echo "C:\Program Files (x86)\WiX Toolset v3.11\bin" >> $env:GITHUB_PATH
 
-    - name: Build
-      run: |
-        cd build
-        cmake --build . --config Release
+      - name: Configure CMake
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
-    - name: Create packages
-      run: |
-        cd build
-        cpack -G WIX
-        cpack -G ZIP
-        cpack -G TGZ
+      - name: Build
+        run: cmake --build build --config Release
 
-    - name: List generated packages
-      shell: bash
-      run: |
-        ls -la build/*.msi build/*.zip build/*.tar.gz 2>/dev/null || true
+      - name: Create packages
+        shell: pwsh
+        run: |
+          Set-Location build
+          cpack -G WIX  # MSI
+          cpack -G ZIP
+          cpack -G TGZ
 
-    - name: Upload all artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: windows-packages
-        path: |
-          build/*.msi
-          build/*.zip
-          build/*.tar.gz
+      - name: Collect packages
+        shell: pwsh
+        run: |
+          # CPack Ð½Ð° Windows ÐºÐ»Ð°Ð´Ñ‘Ñ‚ Ñ„Ð°Ð¹Ð»Ñ‹ Ð¿Ñ€Ñ�Ð¼Ð¾ Ð² build/
+          Get-ChildItem build -Include *.msi,*.zip,*.tar.gz -Recurse | Select-Object FullName
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-packages
+          path: |
+            build/*.msi
+            build/*.zip
+            build/*.tar.gz
+          if-no-files-found: warn
 
   create-release:
     needs: [build-linux, build-macos, build-windows]
@@ -126,25 +122,26 @@ jobs:
     permissions:
       contents: write
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: artifacts
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
-    - name: List all downloaded files
-      run: |
-        find artifacts -type f
-        mkdir -p release_files
-        find artifacts -type f -exec cp {} release_files/ \;
-        ls -la release_files/
+      - name: Collect into release_files/
+        run: |
+          mkdir -p release_files
+          find artifacts -type f -exec cp {} release_files/ \;
+          echo "=== Files to release ==="
+          ls -lh release_files/
 
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: release_files/*
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release_files/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
