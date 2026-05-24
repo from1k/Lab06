@@ -41,11 +41,34 @@ jobs:
         cd build
         cpack -G TGZ
 
-    - name: Upload artifacts
+    - name: Create ZIP archive
+      run: |
+        cd build
+        cpack -G ZIP
+
+    - name: Upload DEB artifact
       uses: actions/upload-artifact@v4
       with:
-        name: linux-packages
+        name: linux-deb
         path: build/*.deb
+
+    - name: Upload RPM artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-rpm
+        path: build/*.rpm
+
+    - name: Upload TGZ artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-tgz
+        path: build/*.tar.gz
+
+    - name: Upload ZIP artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-zip
+        path: build/*.zip
 
   build-macos:
     runs-on: macos-latest
@@ -72,11 +95,28 @@ jobs:
         cd build
         cpack -G ZIP
 
-    - name: Upload artifacts
+    - name: Create TGZ archive
+      run: |
+        cd build
+        cpack -G TGZ
+
+    - name: Upload DMG artifact
       uses: actions/upload-artifact@v4
       with:
-        name: macos-packages
+        name: macos-dmg
         path: build/*.dmg
+
+    - name: Upload ZIP artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-zip
+        path: build/*.zip
+
+    - name: Upload TGZ artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-tgz
+        path: build/*.tar.gz
 
   build-windows:
     runs-on: windows-latest
@@ -99,11 +139,33 @@ jobs:
         cd build
         cpack -G WIX
 
-    - name: Upload artifacts
+    - name: Create ZIP package
+      run: |
+        cd build
+        cpack -G ZIP
+
+    - name: Create TGZ package
+      run: |
+        cd build
+        cpack -G TGZ
+
+    - name: Upload MSI artifact
       uses: actions/upload-artifact@v4
       with:
-        name: windows-packages
+        name: windows-msi
         path: build/*.msi
+
+    - name: Upload ZIP artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-zip
+        path: build/*.zip
+
+    - name: Upload TGZ artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-tgz
+        path: build/*.tar.gz
 
   create-release:
     needs: [build-linux, build-macos, build-windows]
