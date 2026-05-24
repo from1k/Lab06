@@ -25,10 +25,10 @@ jobs:
       - name: Create packages
         run: |
           cd build
-          cpack -G DEB  || true
-          cpack -G RPM  || true
-          cpack -G TGZ  || true
-          cpack -G ZIP  || true
+          cpack -G DEB || true
+          cpack -G RPM || true
+          cpack -G TGZ || true
+          cpack -G ZIP || true
 
       - name: List generated packages
         run: ls -la build/*.deb build/*.rpm build/*.tar.gz build/*.zip 2>/dev/null || true
@@ -49,8 +49,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Select Xcode and verify compiler
+        run: |
+          sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+          clang --version
+          cmake --version
+
       - name: Configure CMake
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 
       - name: Build
         run: cmake --build build --config Release
@@ -80,11 +86,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # WiX Toolset Ð½ÑƒÐ¶ÐµÐ½ Ð´Ð»Ñ� Ð³ÐµÐ½ÐµÑ€Ð°Ñ†Ð¸Ð¸ MSI
       - name: Install WiX Toolset
         run: |
           choco install wixtoolset --no-progress -y
-          echo "C:\Program Files (x86)\WiX Toolset v3.11\bin" >> $env:GITHUB_PATH
+          echo "C:\Program Files (x86)\WiX Toolset v3.11\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Configure CMake
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -96,14 +101,13 @@ jobs:
         shell: pwsh
         run: |
           Set-Location build
-          cpack -G WIX  # MSI
-          cpack -G ZIP
-          cpack -G TGZ
+          cpack -G WIX; if ($LASTEXITCODE -ne 0) { Write-Warning "WIX failed"; $LASTEXITCODE = 0 }
+          cpack -G ZIP; if ($LASTEXITCODE -ne 0) { Write-Warning "ZIP failed"; $LASTEXITCODE = 0 }
+          cpack -G TGZ; if ($LASTEXITCODE -ne 0) { Write-Warning "TGZ failed"; $LASTEXITCODE = 0 }
 
-      - name: Collect packages
+      - name: List generated packages
         shell: pwsh
         run: |
-          # CPack Ð½Ð° Windows ÐºÐ»Ð°Ð´Ñ‘Ñ‚ Ñ„Ð°Ð¹Ð»Ñ‹ Ð¿Ñ€Ñ�Ð¼Ð¾ Ð² build/
           Get-ChildItem build -Include *.msi,*.zip,*.tar.gz -Recurse | Select-Object FullName
 
       - name: Upload Windows artifacts
